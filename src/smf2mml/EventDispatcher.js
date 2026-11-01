@@ -1,4 +1,4 @@
-const MMLChannel = require('./MMLChannel.js');
+import MMLChannel from './MMLChannel.js';
 
 class EventDispatcher {
   constructor(numChannels, volume, pitch) {
@@ -103,4 +103,4 @@ class EventDispatcher {
   }
 }
 
-module.exports = EventDispatcher;
+export default EventDispatcher;

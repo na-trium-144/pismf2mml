@@ -1,4 +1,4 @@
-const ticksToMMLLength = require('./ticksToMMLLength.js');
+import ticksToMMLLength from './ticksToMMLLength.js';
 
 function keyToMML(key) {
   const KEY_NAME = [
@@ -217,4 +217,4 @@ class MMLChannel {
   }
 }
 
-module.exports = MMLChannel;
+export default MMLChannel;

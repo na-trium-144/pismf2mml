@@ -1,4 +1,4 @@
-const TinySMF = require('./TinySMF.js');
+import TinySMF from './TinySMF.js';
 
 class EventFilter {
   constructor(source, inputTPQN, outputTPQN) {
@@ -146,4 +146,4 @@ class EventFilter {
   }
 }
 
-module.exports = EventFilter;
+export default EventFilter;

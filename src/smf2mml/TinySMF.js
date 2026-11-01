@@ -1,4 +1,4 @@
-const Reader = require('./Reader.js');
+import Reader from './Reader.js';
 
 const Group = {
   CHANNEL_VOICE_MESSAGE   : 0,
@@ -325,7 +325,13 @@ function readTrack(reader) {
   return events;
 }
 
-module.exports = {
+export {
+  Group,
+  Type,
+  readSMF as read
+};
+
+export default {
   Group,
   Type,
   read: readSMF

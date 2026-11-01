@@ -59,4 +59,4 @@ for (let ticks = BASE + 1; ticks <= MAX_TICKS; ticks++) {
   memo[ticks] = memo[ticks] || getMMLLen(ticks);
 }
 
-module.exports = ticksToMMLLength;
+export default ticksToMMLLength;

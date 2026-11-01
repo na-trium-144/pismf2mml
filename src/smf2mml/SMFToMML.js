@@ -1,18 +1,63 @@
-const TinySMF = require('./TinySMF.js');
-const EventFilter = require('./EventFilter.js');
-const EventDispatcher = require('./EventDispatcher.js');
+import TinySMF from './TinySMF.js';
+import EventFilter from './EventFilter.js';
+import EventDispatcher from './EventDispatcher.js';
 
 class SMFToMML {
   constructor(smfBuffer) {
     const smf = TinySMF.read(smfBuffer);
-    if (smf.header.format != 1) {
+    if (smf.header.format !== 0 && smf.header.format !== 1) {
       throw `Format ${smf.header.format} is not supported.`;
     }
     if (smf.header.division & 0x8000) {
       throw 'SMPTE format is not supported.';
     }
     const tpqn = smf.header.division;
-    const trackInfo = smf.tracks.map((track) => {
+
+    let tempoTrack = [];
+    let tracks = [];
+    let title = null;
+
+    if (smf.header.format === 0) {
+      const singleTrack = smf.tracks[0] || [];
+      const channelEvents = Array.from({ length: 16 }, () => []);
+      const channelHasNotes = Array(16).fill(false);
+      let endOfTrackEvent = null;
+
+      for (const event of singleTrack) {
+        if (event.group === TinySMF.Group.META_EVENT_MESSAGE) {
+          tempoTrack.push(event);
+          if (event.type === TinySMF.Type.SEQUENCE_TRACK_NAME && !title) {
+            title = event.data;
+          }
+          if (event.type === TinySMF.Type.END_OF_TRACK) {
+            endOfTrackEvent = event;
+          }
+        } else if (event.channel !== undefined) {
+          channelEvents[event.channel].push(event);
+          if (event.type === TinySMF.Type.NOTE_ON && event.velocity > 0) {
+            channelHasNotes[event.channel] = true;
+          }
+        } else {
+          tempoTrack.push(event);
+        }
+      }
+
+      for (let ch = 0; ch < 16; ch++) {
+        if (channelHasNotes[ch]) {
+          const chTrack = channelEvents[ch];
+          if (endOfTrackEvent) {
+            chTrack.push({ ...endOfTrackEvent });
+          }
+          tracks.push(chTrack);
+        }
+      }
+    } else {
+      // Format 1
+      tempoTrack = smf.tracks[0];
+      tracks = smf.tracks.slice(1);
+    }
+
+    const trackInfo = tracks.map((track, idx) => {
       let name;
       let totalNotes = 0;
       let poly = 0;
@@ -21,6 +66,7 @@ class SMFToMML {
       for (const event of track) {
         switch (event.type) {
           case TinySMF.Type.SEQUENCE_TRACK_NAME:
+          case TinySMF.Type.INSTRUMENT_NAME:
             name = name || event.data;
             break;
           case TinySMF.Type.NOTE_ON:
@@ -38,11 +84,21 @@ class SMFToMML {
       }
       return { name, totalNotes, maxPoly, ticks };
     });
+
+    if (smf.header.format === 1) {
+      for (const event of tempoTrack) {
+        if (event.type === TinySMF.Type.SEQUENCE_TRACK_NAME) {
+          title = title || event.data;
+          break;
+        }
+      }
+    }
+
     this._tpqn = tpqn;
-    this._title = trackInfo.shift().name;
+    this._title = title;
     this._trackInfo = trackInfo;
-    this._tempoTrack = smf.tracks.shift();
-    this._tracks = smf.tracks;
+    this._tempoTrack = tempoTrack;
+    this._tracks = tracks;
   }
 
   get trackInfo() {
@@ -72,8 +128,8 @@ class SMFToMML {
       dispatcher.next();
       ticks++;
     }
-    return { mml: dispatcher.render(), ticks }
+    return { mml: dispatcher.render(), ticks };
   }
 }
 
-module.exports = SMFToMML;
+export default SMFToMML;

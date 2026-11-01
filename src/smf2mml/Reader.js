@@ -1,4 +1,4 @@
-module.exports = class Reader {
+export default class Reader {
   constructor(buffer) {
     this._buffer = buffer;
     this._dataview = new DataView(buffer);
