@@ -53,8 +53,11 @@ class SMFToMML {
       }
     } else {
       // Format 1
-      tempoTrack = smf.tracks[0];
-      tracks = smf.tracks.slice(1);
+      tempoTrack = smf.tracks[0] || [];
+      const track0HasNotes = tempoTrack.some(
+        (ev) => ev.type === TinySMF.Type.NOTE_ON && ev.velocity > 0
+      );
+      tracks = track0HasNotes ? smf.tracks : smf.tracks.slice(1);
     }
 
     const trackInfo = tracks.map((track, idx) => {

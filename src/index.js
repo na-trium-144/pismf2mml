@@ -32,7 +32,7 @@ export function decodeMidiText(data, encoding = 'AUTO') {
  * @param {object} [options]
  * @param {string} [options.encoding='AUTO']
  * @param {'mml' | 'smilebasic'} [options.format='mml']
- * @param {number} [options.maxChannels=16]
+ * @param {number} [options.maxChannels=Infinity]
  * @param {Array<object>} [options.trackOptions]
  * @returns {{ title: string, mml: string, trackInfo: Array<{ name: string, totalNotes: number, maxPoly: number, ticks: number }> }}
  */
@@ -40,10 +40,10 @@ export function convertSmfToMml(smfBuffer, options = {}) {
   const converter = new SMFToMML(smfBuffer);
   const encoding = options.encoding || 'AUTO';
   const format = options.format || 'mml';
-  const maxChannels = options.maxChannels ?? 16;
+  const maxChannels = options.maxChannels ?? Infinity;
 
   const rawTitle = converter.title;
-  const title = decodeMidiText(rawTitle, encoding) || 'Untitled';
+  const title = decodeMidiText(rawTitle, encoding);
 
   const trackInfo = converter.trackInfo.map((tr, i) => {
     const opt = options.trackOptions?.find((o) => o.trackIndex === i);
@@ -113,7 +113,8 @@ export function convertSmfToMml(smfBuffer, options = {}) {
     let output = '';
     let chars = 0;
     for (const group of channelOutputs) {
-      output += `'[${group.trackName}] ${group.ticks} ticks\n`;
+      const sanitizedName = group.trackName.replace(/\//g, '-');
+      output += `'/[${sanitizedName}]/ ${group.ticks} ticks\n`;
       let ch = group.startChannel;
       for (const mml of group.mmlList) {
         output += `DATA ":${ch} ${mml}"\n`;
@@ -126,17 +127,19 @@ export function convertSmfToMml(smfBuffer, options = {}) {
     } else {
       output += `DATA 0\n`;
     }
-    fullMml = `CLS\nBGMSETD 128,@MMLDATA: BGMPLAY 128\nREPEAT: WAIT: UNTIL BUTTON()\nSNDSTOP\n@MMLDATA\n'Title: ${title} / ${chars} characters\n${output}`;
+    const titleHeader = title ? `'Title: ${title} / ${chars} characters\n` : '';
+    fullMml = `CLS\nBGMSETD 128,@MMLDATA: BGMPLAY 128\nREPEAT: WAIT: UNTIL BUTTON()\nSNDSTOP\n@MMLDATA\n${titleHeader}${output}`;
   } else {
     // format === 'mml'
     const headerLines = [];
-    if (title) {
-      headerLines.push(`{TITLE:${title}}`);
+    if (title && title.trim() !== '') {
+      headerLines.push(`{TITLE=${title.trim()}}`);
     }
 
     const bodyLines = [];
     for (const group of channelOutputs) {
-      bodyLines.push(`' [${group.trackName}]`);
+      const sanitizedName = group.trackName.replace(/\//g, '-');
+      bodyLines.push(`/[${sanitizedName}]/`);
       let ch = group.startChannel;
       for (const mml of group.mmlList) {
         bodyLines.push(`:${ch} ${mml}`);
